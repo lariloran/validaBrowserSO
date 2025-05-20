@@ -40,138 +40,217 @@
 
     <script>
       async function obterNavegador(usandoClientHint) {
+        if (usandoClientHint && navigator.userAgentData) {
+          return await obterNavegadorComClientHints();
+        } else {
+          return await obterNavegadorComUserAgent();
+        }
+      }
+
+      async function obterSistemaOperacional(usandoClientHint) {
+        if (usandoClientHint && navigator.userAgentData) {
+          return await obterSistemaOperacionalComClientHints();
+        } else {
+          return await obterSistemaOperacionalComUserAgent();
+        }
+      }
+
+      async function obterNavegadorComClientHints() {
         const navegador = {
           nome: null,
           versao: null,
         };
 
-        if (usandoClientHint && navigator.userAgentData) {
-          try {
-            const hints = await navigator.userAgentData.getHighEntropyValues([
-              "uaFullVersion",
-            ]);
-            const brand =
-              navigator.userAgentData.brands.find(
-                (b) => !b.brand.includes("Not")
-              ) || navigator.userAgentData.brands[0];
+        try {
+          const hints = await navigator.userAgentData.getHighEntropyValues([
+            "uaFullVersion",
+          ]);
+          const brand =
+            navigator.userAgentData.brands.find(
+              (b) =>
+                !b.brand.toUpperCase().includes("NOT") &&
+                !b.brand.toUpperCase().includes("CHROMIUM")
+            ) || navigator.userAgentData.brands[0];
 
-            navegador.nome = brand?.brand || "desconhecido";
-            navegador.versao = hints.uaFullVersion || "desconhecida";
-          } catch (e) {
-            navegador.nome = "erro";
-            navegador.versao = "erro";
-          }
-        } else {
-          try {
-            const ua = navigator.userAgent;
-            if (ua.includes("Chrome") && !ua.includes("Edg"))
-              navegador.nome = "Chrome";
-            else if (ua.includes("Edg")) navegador.nome = "Edge";
-            else if (ua.includes("Firefox")) navegador.nome = "Firefox";
-            else if (ua.includes("Safari") && !ua.includes("Chrome"))
-              navegador.nome = "Safari";
-            else navegador.nome = "Desconhecido";
-
-            const match = ua.match(/(Chrome|Firefox|Edg|Safari)\/([\d\.]+)/);
-            navegador.versao = match?.[2] || "desconhecida";
-          } catch {
-            navegador.nome = "erro";
-            navegador.versao = "erro";
-          }
+          navegador.nome = brand?.brand || "";
+          navegador.versao = hints.uaFullVersion || "";
+        } catch (e) {
+          navegador.nome = "";
+          navegador.versao = "";
         }
 
         return navegador;
       }
 
-      async function obterSO(usandoClientHint) {
+      async function obterNavegadorComUserAgent() {
+        const navegador = {
+          nome: null,
+          versao: null,
+        };
+
+        try {
+          const ua = navigator.userAgent;
+
+          if (ua.includes("Chrome") && !ua.includes("Edg")) {
+            navegador.nome = "Chrome";
+            navegador.versao = extrairVersaoNavegador(ua);
+          } else if (ua.includes("Edg")) {
+            navegador.nome = "Edge";
+            navegador.versao = extrairVersaoNavegador(ua);
+          } else if (ua.includes("Firefox")) {
+            navegador.nome = "Firefox";
+            const match = ua.match(/Firefox\/([\d\.]+)/);
+            navegador.versao = match?.[1] || "";
+          } else if (ua.includes("Safari") && !ua.includes("Chrome")) {
+            navegador.nome = "Safari";
+            const match = ua.match(/Version\/([\d\.]+)/);
+            navegador.versao = match?.[1] || "";
+          } else {
+            navegador.nome = "";
+            navegador.versao = "";
+          }
+        } catch {
+          navegador.nome = "";
+          navegador.versao = "";
+        }
+
+        return navegador;
+      }
+
+      async function obterSistemaOperacionalComClientHints() {
+        const sistemaOperacional = {
+          nome: null,
+          versao: null,
+        };
+        try {
+          const hints = await navigator.userAgentData.getHighEntropyValues([
+            "platform",
+            "platformVersion",
+          ]);
+
+          sistemaOperacional.nome = hints.platform || "";
+          sistemaOperacional.versao = hints.platformVersion || "";
+
+          if (
+            sistemaOperacional.nome === "Windows" &&
+            sistemaOperacional.versao
+          ) {
+            const majorVersion = parseInt(
+              sistemaOperacional.versao.split(".")[0],
+              10
+            );
+            if (!isNaN(majorVersion)) {
+              if (majorVersion >= 13) {
+                sistemaOperacional.nome = "Windows 11";
+              } else if (majorVersion >= 1) {
+                sistemaOperacional.nome = "Windows 10";
+              } else {
+                sistemaOperacional.nome = "Windows 7/8/8.1";
+              }
+            }
+          }
+        } catch (e) {
+          sistemaOperacional.nome = "";
+          sistemaOperacional.versao = "";
+        }
+
+        return sistemaOperacional;
+      }
+      async function obterSistemaOperacionalComUserAgent() {
         const sistemaOperacional = {
           nome: null,
           versao: null,
         };
 
-        if (usandoClientHint && navigator.userAgentData) {
-          try {
-            const hints = await navigator.userAgentData.getHighEntropyValues([
-              "platform",
-              "platformVersion",
-            ]);
+        try {
+          const ua = navigator.userAgent.toUpperCase();
 
-            sistemaOperacional.nome = hints.platform || "desconhecido";
-            sistemaOperacional.versao = hints.platformVersion || "desconhecida";
-
-            if (
-              sistemaOperacional.nome === "Windows" &&
-              sistemaOperacional.versao
+          if (ua.includes("WINDOWS")) {
+            if (ua.includes("WINDOWS NT 10.0")) {
+              sistemaOperacional.nome = "Windows 10";
+            } else if (ua.includes("WINDOWS NT 11.0")) {
+              sistemaOperacional.nome = "Windows 11";
+            } else if (ua.includes("WINDOWS NT 6.3")) {
+              sistemaOperacional.nome = "Windows 8.1";
+            } else if (ua.includes("WINDOWS NT 6.2")) {
+              sistemaOperacional.nome = "Windows 8";
+            } else if (ua.includes("WINDOWS NT 6.1")) {
+              sistemaOperacional.nome = "Windows 7";
+            } else if (ua.includes("WINDOWS NT 6.0")) {
+              sistemaOperacional.nome = "Windows Vista";
+            } else if (ua.includes("WINDOWS NT 5.2")) {
+              sistemaOperacional.nome = "Windows Server 2003/XP";
+            } else if (
+              ua.includes("WINDOWS NT 5.1") ||
+              ua.includes("WINDOWS XP")
             ) {
-              const majorVersion = parseInt(
-                sistemaOperacional.versao.split(".")[0],
-                10
-              );
-              if (!isNaN(majorVersion)) {
-                if (majorVersion >= 13) {
-                  sistemaOperacional.nome = "Windows 11";
-                } else if (majorVersion >= 1) {
-                  sistemaOperacional.nome = "Windows 10";
-                } else {
-                  sistemaOperacional.nome = "Windows 7/8/8.1";
-                }
-              }
-            }
-          } catch (e) {
-            sistemaOperacional.nome = "erro";
-            sistemaOperacional.versao = "erro";
-          }
-        } else {
-          try {
-            const ua = navigator.userAgent.toUpperCase();
-
-            if (ua.includes("WINDOWS")) {
-              if (ua.includes("WINDOWS NT 10.0")) {
-                sistemaOperacional.nome = "Windows 10";
-              } else if (ua.includes("WINDOWS NT 11.0")) {
-                sistemaOperacional.nome = "Windows 11";
-              } else if (ua.includes("WINDOWS NT 6.3")) {
-                sistemaOperacional.nome = "Windows 8.1";
-              } else if (ua.includes("WINDOWS NT 6.2")) {
-                sistemaOperacional.nome = "Windows 8";
-              } else if (ua.includes("WINDOWS NT 6.1")) {
-                sistemaOperacional.nome = "Windows 7";
-              } else if (ua.includes("WINDOWS NT 6.0")) {
-                sistemaOperacional.nome = "Windows Vista";
-              } else if (ua.includes("WINDOWS NT 5.2")) {
-                sistemaOperacional.nome = "Windows Server 2003/XP";
-              } else if (
-                ua.includes("WINDOWS NT 5.1") ||
-                ua.includes("WINDOWS XP")
-              ) {
-                sistemaOperacional.nome = "Windows XP";
-              } else {
-                sistemaOperacional.nome = ua.slice(0, 15);
-              }
-              sistemaOperacional.versao = "desconhecida";
+              sistemaOperacional.nome = "Windows XP";
             } else {
-              if (ua.includes("LINUX")) {
-                sistemaOperacional.nome = "Linux";
-              } else if (ua.includes("IPHONE")) {
-                sistemaOperacional.nome = "iOS";
-              } else if (ua.includes("ANDROID")) {
-                sistemaOperacional.nome = "Android";
-              } else if (ua.includes("MAC")) {
-                sistemaOperacional.nome = "Mac OS";
-              } else if (ua.includes("WEBOS")) {
-                sistemaOperacional.nome = "Mobile";
-              } else {
-                sistemaOperacional.nome = ua.slice(0, 15);
-              }
-              sistemaOperacional.versao = "desconhecida";
+              sistemaOperacional.nome = ua.slice(0, 15);
             }
-          } catch {
-            sistemaOperacional.nome = "erro";
-            sistemaOperacional.versao = "erro";
+          } else {
+            if (ua.includes("LINUX")) {
+              sistemaOperacional.nome = "Linux";
+            } else if (ua.includes("IPHONE")) {
+              sistemaOperacional.nome = "iOS";
+            } else if (ua.includes("ANDROID")) {
+              sistemaOperacional.nome = "Android";
+            } else if (ua.includes("MAC")) {
+              sistemaOperacional.nome = "Mac OS";
+            } else if (ua.includes("WEBOS")) {
+              sistemaOperacional.nome = "Mobile";
+            } else {
+              sistemaOperacional.nome = ua.slice(0, 15);
+            }
           }
+        } catch {
+          sistemaOperacional.nome = "";
+          sistemaOperacional.versao = "";
         }
 
         return sistemaOperacional;
+      }
+
+      
+      
+      
+      function extrairVersaoNavegador(userAgent) {
+        let version = "";
+        userAgent = userAgent.toString().toLowerCase();
+
+        if (/edg\//.test(userAgent)) {
+          version = userAgent.match(/edg\/([\d.]+)/)[1];
+        } else if (/chrome\//.test(userAgent)) {
+          version = userAgent.match(/chrome\/([\d.]+)/)[1];
+        } else {
+          version = "N/A";
+        }
+
+        return version;
+      }
+
+      function extrairVersaoWindows(userAgent) {
+        const match = userAgent.match(/Windows NT (\\d+\\.\\d+)/i);
+        if (match && match.length > 1) {
+          return parseFloat(match[1]); // Ex: 10.0, 6.1 etc.
+        }
+        return 0;
+      }
+
+      async function detectar() {
+        const data = await detectarInfos();
+        const validacao = validaRequisitosNavSo(data);
+
+        const resultado = {
+         // ...data,
+          validacao,
+        };
+
+        document.getElementById("resultado").textContent = JSON.stringify(
+          resultado,
+          null,
+          2
+        );
       }
 
       async function detectarInfos() {
@@ -180,7 +259,7 @@
           navigator.userAgentData.getHighEntropyValues;
 
         const navegador = await obterNavegador(clientHintsDisponivel);
-        const sistemaOperacional = await obterSO(clientHintsDisponivel);
+        const sistemaOperacional = await obterSistemaOperacional(clientHintsDisponivel);
 
         return {
           navegador,
@@ -188,37 +267,61 @@
           engineUtilizada: clientHintsDisponivel ? "clientHint" : "userAgent",
         };
       }
-      async function detectar() {
-        const dados = await detectarInfos();
-        document.getElementById("resultado").textContent = JSON.stringify(
-          dados,
-          null,
-          2
-        );
+
+      function validaSistemaOperacional(sistemaOperacional) {
+        const nomeSO = sistemaOperacional.nome?.toUpperCase() || "";
+
+        let soValido = true;
+        let versaoWindows = null;
+
+        if (nomeSO.includes("WINDOWS")) {
+          if (
+            sistemaOperacional.versao &&
+            sistemaOperacional.versao !== ""
+          ) {
+            versaoWindows = parseFloat(
+              sistemaOperacional.versao.split(".")[0]
+            );
+          } else {
+            versaoWindows = extrairVersaoWindows(navigator.userAgent);
+          }
+
+          soValido = versaoWindows >= 10;
+        }
+
+        return soValido;
       }
 
-      async function detectarSO() {
-        const clientHintsDisponivel =
-          navigator.userAgentData &&
-          navigator.userAgentData.getHighEntropyValues;
-        const so = await obterSO(clientHintsDisponivel);
-        document.getElementById("resultado").textContent = JSON.stringify(
-          { sistemaOperacional: so },
-          null,
-          2
-        );
+      function validaNavegador(navegador) {
+        const nomeNavegador = navegador.nome?.toUpperCase() || "";
+
+        const navegadorValido =
+        nomeNavegador.includes("CHROME") || nomeNavegador.includes("EDGE");
+
+        return navegadorValido;
       }
 
-      async function detectarNavegador() {
-        const clientHintsDisponivel =
-          navigator.userAgentData &&
-          navigator.userAgentData.getHighEntropyValues;
-        const nav = await obterNavegador(clientHintsDisponivel);
-        document.getElementById("resultado").textContent = JSON.stringify(
-          { navegador: nav },
-          null,
-          2
-        );
+      function validaRequisitosNavSo(data) {
+        const navegadorValido = validaNavegador(data.navegador);
+        const soValido = validaSistemaOperacional(data.sistemaOperacional);
+
+        return {
+          requisitosValidos: navegadorValido && soValido,
+          navegador: {
+            nome: data.navegador.nome || "",
+            versao: data.navegador.versao || "",
+            mensagem: navegadorValido
+              ? ""
+              : "O sistema FPE deverá ser acessado através do Chrome ou Edge.",
+          },
+          sistemaOperacional: {
+            nome: data.sistemaOperacional.nome || "",
+            versao: data.sistemaOperacional.versao || "",
+            mensagem: soValido
+              ? ""
+              : "O sistema FPE deverá ser acessado através do Windows 10 ou superior.",
+          },
+        };
       }
     </script>
   </body>
